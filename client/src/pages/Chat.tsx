@@ -9,7 +9,8 @@ import RevealPopup from "@/components/RevealPopup";
 
 export default function Chat() {
   const { matchId: matchIdStr } = useParams<{ matchId: string }>();
-  const matchId = parseInt(matchIdStr ?? "0");
+  const matchId = parseInt(matchIdStr ?? "", 10);
+  const isValidMatchId = !isNaN(matchId) && matchId > 0;
   const [, navigate] = useLocation();
   const [message, setMessage] = useState("");
   const [showPaywall, setShowPaywall] = useState(false);
@@ -21,19 +22,20 @@ export default function Chat() {
 
   const { data: user, isLoading } = trpc.auth.me.useQuery();
   const { data: match, refetch: refetchMatch } = trpc.match.getMatch.useQuery(
-    { matchId },
-    { enabled: !!matchId && matchId > 0 && !!user, refetchInterval: 5000 }
+    { matchId: isValidMatchId ? matchId : 0 },
+    { enabled: isValidMatchId && !!user, refetchInterval: 5000 }
   );
   const { data: messages, refetch: refetchMessages } = trpc.message.getMessages.useQuery(
-    { matchId },
-    { enabled: !!matchId && matchId > 0 && !!user, refetchInterval: 3000 }
+    { matchId: isValidMatchId ? matchId : 0 },
+    { enabled: isValidMatchId && !!user, refetchInterval: 3000 }
   );
 
-  // Guard: redirect if not authenticated
+  // Guard: redirect if not authenticated or matchId is invalid
   useEffect(() => {
     if (isLoading) return;
-    if (!user) navigate("/login");
-  }, [user, isLoading, navigate]);
+    if (!user) { navigate("/login"); return; }
+    if (!isValidMatchId) { navigate("/home"); return; }
+  }, [user, isLoading, isValidMatchId, navigate]);
 
   const sendMutation = trpc.message.send.useMutation({
     onSuccess: (data) => {
@@ -124,7 +126,7 @@ export default function Chat() {
     );
   }
 
-  if (!user) return null;
+  if (!user || !isValidMatchId) return null;
 
   const otherName = match?.otherUser.displayName ?? "Anonymous";
   const iLiked = match?.iLiked ?? false;
