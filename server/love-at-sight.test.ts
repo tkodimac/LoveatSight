@@ -253,3 +253,48 @@ describe("auth.register", () => {
     ).rejects.toThrow(); // Zod email validation
   });
 });
+
+// ── Knock notification tests ──────────────────────────────────────────────────
+
+describe("notification.accept", () => {
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(makeCtx(null));
+    await expect(
+      caller.notification.accept({ notificationId: 1 })
+    ).rejects.toThrow();
+  });
+});
+
+describe("notification.reject", () => {
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(makeCtx(null));
+    await expect(
+      caller.notification.reject({ notificationId: 1 })
+    ).rejects.toThrow();
+  });
+});
+
+describe("notification.ignore", () => {
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(makeCtx(null));
+    await expect(
+      caller.notification.ignore({ notificationId: 1 })
+    ).rejects.toThrow();
+  });
+});
+
+describe("notification.clear", () => {
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(makeCtx(null));
+    await expect(
+      caller.notification.clear({ notificationId: 1 })
+    ).rejects.toThrow();
+  });
+});
+
+describe("notification.getMyNotifications", () => {
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(makeCtx(null));
+    await expect(caller.notification.getMyNotifications()).rejects.toThrow();
+  });
+});

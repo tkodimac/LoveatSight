@@ -89,3 +89,19 @@ export const subscriptions = mysqlTable("subscriptions", {
 
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = typeof subscriptions.$inferInsert;
+
+export const knockNotifications = mysqlTable("knock_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  matchId: int("matchId").notNull(),
+  knockerId: int("knockerId").notNull(),    // user who knocked
+  receiverId: int("receiverId").notNull(),  // user who receives the notification
+  status: mysqlEnum("status", ["pending", "accepted", "rejected", "ignored"]).default("pending").notNull(),
+  rejectCount: int("rejectCount").default(0).notNull(), // increments on first reject prompt
+  cooldownUntil: timestamp("cooldownUntil"),            // set after final rejection
+  clearedAt: timestamp("clearedAt"),                    // when receiver cleared it
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type KnockNotification = typeof knockNotifications.$inferSelect;
+export type InsertKnockNotification = typeof knockNotifications.$inferInsert;

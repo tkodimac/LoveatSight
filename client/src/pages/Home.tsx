@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { MapPin, MessageCircle, Zap, Flame, Bell, FlaskConical } from "lucide-react";
 import PaywallPopup from "@/components/PaywallPopup";
+import KnockNotificationBar from "@/components/KnockNotificationBar";
 
 type NearbyUser = {
   id: number;
@@ -47,9 +48,9 @@ export default function Home() {
       setPendingKnockId(null);
       toast.success("Knock sent! 💜");
     },
-    onError: () => {
+    onError: (e) => {
       setPendingKnockId(null);
-      toast.error("Failed to send knock");
+      toast.error(e.message ?? "Failed to send knock");
     },
   });
 
@@ -150,6 +151,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Knock notifications bar */}
+      <KnockNotificationBar />
 
       <div className="flex-1 px-4 pb-6 space-y-6 pt-2">
         {/* Welcome card */}

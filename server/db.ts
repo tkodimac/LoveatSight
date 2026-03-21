@@ -1,6 +1,6 @@
-import { and, desc, eq, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, ne, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, Match, matches, messages, subscriptions, users } from "../drizzle/schema";
+import { InsertUser, Match, knockNotifications, matches, messages, subscriptions, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -201,6 +201,102 @@ export async function createSubscription(
     .from(subscriptions)
     .where(eq(subscriptions.userId, userId))
     .orderBy(desc(subscriptions.createdAt))
+    .limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+// ── Knock notification helpers ───────────────────────────────────────────────
+
+export async function createKnockNotification(
+  matchId: number,
+  knockerId: number,
+  receiverId: number
+) {
+  const db = await getDb();
+  if (!db) return null;
+  // Check if a pending notification already exists
+  const existing = await db
+    .select()
+    .from(knockNotifications)
+    .where(
+      and(
+        eq(knockNotifications.matchId, matchId),
+        eq(knockNotifications.knockerId, knockerId),
+        eq(knockNotifications.receiverId, receiverId),
+        eq(knockNotifications.status, "pending")
+      )
+    )
+    .limit(1);
+  if (existing.length > 0) return existing[0];
+  await db.insert(knockNotifications).values({ matchId, knockerId, receiverId });
+  const created = await db
+    .select()
+    .from(knockNotifications)
+    .where(
+      and(
+        eq(knockNotifications.matchId, matchId),
+        eq(knockNotifications.knockerId, knockerId),
+        eq(knockNotifications.receiverId, receiverId)
+      )
+    )
+    .orderBy(desc(knockNotifications.createdAt))
+    .limit(1);
+  return created.length > 0 ? created[0] : null;
+}
+
+export async function getPendingNotifications(receiverId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  // Return all non-cleared notifications (pending + accepted + rejected shown until cleared)
+  return db
+    .select()
+    .from(knockNotifications)
+    .where(
+      and(
+        eq(knockNotifications.receiverId, receiverId),
+        sql`${knockNotifications.clearedAt} IS NULL`
+      )
+    )
+    .orderBy(desc(knockNotifications.createdAt));
+}
+
+export async function getKnockNotificationById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(knockNotifications)
+    .where(eq(knockNotifications.id, id))
+    .limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function updateKnockNotification(
+  id: number,
+  data: Partial<typeof knockNotifications.$inferInsert>
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(knockNotifications).set(data as any).where(eq(knockNotifications.id, id));
+}
+
+// Check if knocker is on cooldown for a specific receiver (6-hour block after final rejection)
+export async function getKnockCooldown(knockerId: number, receiverId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const now = new Date();
+  const result = await db
+    .select()
+    .from(knockNotifications)
+    .where(
+      and(
+        eq(knockNotifications.knockerId, knockerId),
+        eq(knockNotifications.receiverId, receiverId),
+        eq(knockNotifications.status, "rejected"),
+        gt(knockNotifications.cooldownUntil, now)
+      )
+    )
+    .orderBy(desc(knockNotifications.updatedAt))
     .limit(1);
   return result.length > 0 ? result[0] : null;
 }

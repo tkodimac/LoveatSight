@@ -9,16 +9,21 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import {
   calcDistance,
+  createKnockNotification,
   createMessage,
   createSubscription,
   filterMessageContent,
+  getKnockCooldown,
+  getKnockNotificationById,
   getMatchById,
   getMessages,
   getNearbyUsers,
   getOrCreateMatch,
+  getPendingNotifications,
   getUserByEmail,
   getUserById,
   getUserMatches,
+  updateKnockNotification,
   updateMatch,
   updateUserProfile,
   upsertUser,
@@ -169,8 +174,23 @@ export const appRouter = router({
     knock: protectedProcedure
       .input(z.object({ targetUserId: z.number() }))
       .mutation(async ({ ctx, input }) => {
+        // Check 6-hour cooldown after rejection
+        const cooldown = await getKnockCooldown(ctx.user.id, input.targetUserId);
+        if (cooldown) {
+          const remaining = Math.ceil(
+            (new Date(cooldown.cooldownUntil!).getTime() - Date.now()) / (1000 * 60)
+          );
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: `You were rejected. Try again in ${remaining} minutes.`,
+          });
+        }
         const match = await getOrCreateMatch(ctx.user.id, input.targetUserId);
-        return { success: true, matchId: match?.id };
+        if (!match) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Determine who is the receiver
+        const receiverId = match.userId1 === ctx.user.id ? match.userId2 : match.userId1;
+        await createKnockNotification(match.id, ctx.user.id, receiverId);
+        return { success: true, matchId: match.id };
       }),
 
     like: protectedProcedure
@@ -336,6 +356,94 @@ export const appRouter = router({
         const msg = await createMessage(input.matchId, ctx.user.id, content, filtered);
         return { success: true, message: msg, filtered };
       }),
+  }),
+
+  notification: router({
+    getMyNotifications: protectedProcedure.query(async ({ ctx }) => {
+      const notifs = await getPendingNotifications(ctx.user.id);
+      // Enrich with knocker info
+      const enriched = await Promise.all(
+        notifs.map(async (n) => {
+          const knocker = await getUserById(n.knockerId);
+          return {
+            id: n.id,
+            matchId: n.matchId,
+            knockerId: n.knockerId,
+            status: n.status,
+            rejectCount: n.rejectCount,
+            cooldownUntil: n.cooldownUntil,
+            createdAt: n.createdAt,
+            knocker: {
+              displayName: knocker?.displayName ?? knocker?.name ?? "Someone",
+              age: knocker?.age ?? null,
+            },
+          };
+        })
+      );
+      return enriched;
+    }),
+
+    accept: protectedProcedure
+      .input(z.object({ notificationId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const notif = await getKnockNotificationById(input.notificationId);
+        if (!notif) throw new TRPCError({ code: "NOT_FOUND" });
+        if (notif.receiverId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await updateKnockNotification(notif.id, { status: "accepted" });
+        // Update match status to knocked (acknowledged)
+        await updateMatch(notif.matchId, { status: "knocked" });
+        return { success: true, matchId: notif.matchId };
+      }),
+
+    // First call: rejectCount < 1 → increment rejectCount and return "confirm" signal
+    // Second call: rejectCount >= 1 → set status=rejected + 6h cooldown
+    reject: protectedProcedure
+      .input(z.object({ notificationId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const notif = await getKnockNotificationById(input.notificationId);
+        if (!notif) throw new TRPCError({ code: "NOT_FOUND" });
+        if (notif.receiverId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+
+        if (notif.rejectCount < 1) {
+          // First press — ask for confirmation
+          await updateKnockNotification(notif.id, { rejectCount: 1 });
+          return { confirmed: false, message: "Are you sure? This will block them for 6 hours." };
+        }
+        // Second press — final rejection with 6-hour cooldown
+        const cooldownUntil = new Date(Date.now() + 6 * 60 * 60 * 1000);
+        await updateKnockNotification(notif.id, { status: "rejected", cooldownUntil });
+        return { confirmed: true };
+      }),
+
+    ignore: protectedProcedure
+      .input(z.object({ notificationId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const notif = await getKnockNotificationById(input.notificationId);
+        if (!notif) throw new TRPCError({ code: "NOT_FOUND" });
+        if (notif.receiverId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await updateKnockNotification(notif.id, { status: "ignored" });
+        return { success: true };
+      }),
+
+    clear: protectedProcedure
+      .input(z.object({ notificationId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const notif = await getKnockNotificationById(input.notificationId);
+        if (!notif) throw new TRPCError({ code: "NOT_FOUND" });
+        if (notif.receiverId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await updateKnockNotification(notif.id, { clearedAt: new Date() });
+        return { success: true };
+      }),
+
+    clearAll: protectedProcedure.mutation(async ({ ctx }) => {
+      const notifs = await getPendingNotifications(ctx.user.id);
+      await Promise.all(
+        notifs
+          .filter(n => n.status !== "pending") // keep pending ones visible
+          .map(n => updateKnockNotification(n.id, { clearedAt: new Date() }))
+      );
+      return { success: true };
+    }),
   }),
 
   subscription: router({

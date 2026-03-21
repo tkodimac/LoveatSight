@@ -57,3 +57,10 @@
 - [x] Update Login page with email/password form
 - [x] Seed test accounts: aria@test.com, sam@test.com, jordan@test.com (password: password123)
 - [x] Fix Knock button selecting wrong user (always knocks first user in list instead of clicked user)
+- [x] Add knock_notifications table (schema + migration)
+- [x] Add notification tRPC procedures (get, accept, reject with cooldown, ignore, clear)
+- [x] Update knock mutation to create a notification for the receiver
+- [x] Build NotificationBar component (persistent until cleared, Accept/Reject/Ignore)
+- [x] Add reject double-confirm dialog (prompted twice before final rejection)
+- [x] Enforce 6-hour knock cooldown after rejection
+- [x] Integrate NotificationBar into Home page with polling
