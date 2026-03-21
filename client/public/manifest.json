@@ -1,0 +1,17 @@
+{
+  "name": "Love at Sight",
+  "short_name": "Love at Sight",
+  "description": "Anonymous dating with a mysterious twist",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0a1a",
+  "theme_color": "#0d0a1a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

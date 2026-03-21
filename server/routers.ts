@@ -1,28 +1,309 @@
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import {
+  calcDistance,
+  createMessage,
+  createSubscription,
+  filterMessageContent,
+  getMatchById,
+  getMessages,
+  getNearbyUsers,
+  getOrCreateMatch,
+  getUserById,
+  getUserMatches,
+  updateMatch,
+  updateUserProfile,
+} from "./db";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
+
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+      return { success: true } as const;
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  user: router({
+    getProfile: protectedProcedure.query(async ({ ctx }) => {
+      const user = await getUserById(ctx.user.id);
+      return user;
+    }),
+
+    updateProfile: protectedProcedure
+      .input(z.object({
+        displayName: z.string().min(1).max(100).optional(),
+        bio: z.string().max(500).optional(),
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+        locationCity: z.string().max(100).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await updateUserProfile(ctx.user.id, input);
+        return { success: true };
+      }),
+
+    completeAgeGate: protectedProcedure
+      .input(z.object({
+        birthDate: z.string(), // YYYY-MM-DD
+        age: z.number().int().min(18).max(120),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.age < 18) throw new TRPCError({ code: "BAD_REQUEST", message: "Must be 18+" });
+        await updateUserProfile(ctx.user.id, {
+          birthDate: input.birthDate,
+          age: input.age,
+          ageVerified: true,
+        });
+        return { success: true };
+      }),
+
+    completeFaceVerify: protectedProcedure
+      .input(z.object({
+        facePhotoUrl: z.string().optional(),
+        skipped: z.boolean().default(false),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await updateUserProfile(ctx.user.id, {
+          faceVerified: true,
+          facePhotoUrl: input.facePhotoUrl ?? null,
+          profileComplete: true,
+        });
+        return { success: true };
+      }),
+
+    updateLocation: protectedProcedure
+      .input(z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+        locationCity: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await updateUserProfile(ctx.user.id, input);
+        return { success: true };
+      }),
+
+    getNearby: protectedProcedure
+      .input(z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const nearby = await getNearbyUsers(ctx.user.id, input.latitude, input.longitude);
+        return nearby.map(u => ({
+          id: u.id,
+          displayName: u.displayName ?? u.name ?? "Anonymous",
+          age: u.age,
+          distance: calcDistance(input.latitude, input.longitude, u.latitude ?? 0, u.longitude ?? 0),
+          tier: u.tier,
+          faceVerified: u.faceVerified,
+          // Never expose face photo until revealed
+          avatarUrl: null,
+        }));
+      }),
+  }),
+
+  match: router({
+    knock: protectedProcedure
+      .input(z.object({ targetUserId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const match = await getOrCreateMatch(ctx.user.id, input.targetUserId);
+        return { success: true, matchId: match?.id };
+      }),
+
+    like: protectedProcedure
+      .input(z.object({ matchId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const match = await getMatchById(input.matchId);
+        if (!match) throw new TRPCError({ code: "NOT_FOUND" });
+        const isUser1 = match.userId1 === ctx.user.id;
+        const isUser2 = match.userId2 === ctx.user.id;
+        if (!isUser1 && !isUser2) throw new TRPCError({ code: "FORBIDDEN" });
+
+        const update: Record<string, unknown> = {};
+        if (isUser1) update.user1Liked = true;
+        else update.user2Liked = true;
+
+        const newUser1Liked = isUser1 ? true : match.user1Liked;
+        const newUser2Liked = isUser2 ? true : match.user2Liked;
+        if (newUser1Liked && newUser2Liked) update.status = "mutual";
+
+        await updateMatch(input.matchId, update as Parameters<typeof updateMatch>[1]);
+        return { success: true, mutual: newUser1Liked && newUser2Liked };
+      }),
+
+    unlike: protectedProcedure
+      .input(z.object({ matchId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const match = await getMatchById(input.matchId);
+        if (!match) throw new TRPCError({ code: "NOT_FOUND" });
+        const isUser1 = match.userId1 === ctx.user.id;
+        const isUser2 = match.userId2 === ctx.user.id;
+        if (!isUser1 && !isUser2) throw new TRPCError({ code: "FORBIDDEN" });
+
+        const update: Record<string, unknown> = {};
+        if (isUser1) update.user1Liked = false;
+        else update.user2Liked = false;
+        update.status = "knocked";
+
+        await updateMatch(input.matchId, update as Parameters<typeof updateMatch>[1]);
+        return { success: true };
+      }),
+
+    reveal: protectedProcedure
+      .input(z.object({ matchId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const match = await getMatchById(input.matchId);
+        if (!match) throw new TRPCError({ code: "NOT_FOUND" });
+        const isUser1 = match.userId1 === ctx.user.id;
+        const isUser2 = match.userId2 === ctx.user.id;
+        if (!isUser1 && !isUser2) throw new TRPCError({ code: "FORBIDDEN" });
+
+        // Check user has paid tier
+        const user = await getUserById(ctx.user.id);
+        if (!user || user.tier === "free") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Subscription required to reveal" });
+        }
+
+        const update: Record<string, unknown> = {};
+        if (isUser1) update.user1Revealed = true;
+        else update.user2Revealed = true;
+
+        const bothRevealed = isUser1 ? (true && match.user2Revealed) : (match.user1Revealed && true);
+        if (bothRevealed) update.status = "revealed";
+
+        await updateMatch(input.matchId, update as Parameters<typeof updateMatch>[1]);
+
+        // Get the other user's face photo
+        const otherUserId = isUser1 ? match.userId2 : match.userId1;
+        const otherUser = await getUserById(otherUserId);
+
+        return {
+          success: true,
+          otherUser: {
+            displayName: otherUser?.displayName ?? otherUser?.name ?? "Anonymous",
+            facePhotoUrl: otherUser?.facePhotoUrl ?? null,
+            avatarUrl: otherUser?.avatarUrl ?? null,
+          },
+        };
+      }),
+
+    getMyMatches: protectedProcedure.query(async ({ ctx }) => {
+      const myMatches = await getUserMatches(ctx.user.id);
+      const enriched = await Promise.all(
+        myMatches.map(async (m) => {
+          const otherId = m.userId1 === ctx.user.id ? m.userId2 : m.userId1;
+          const other = await getUserById(otherId);
+          const iRevealed = m.userId1 === ctx.user.id ? m.user1Revealed : m.user2Revealed;
+          return {
+            matchId: m.id,
+            status: m.status,
+            user1Liked: m.user1Liked,
+            user2Liked: m.user2Liked,
+            iRevealed,
+            otherUser: {
+              id: other?.id,
+              displayName: other?.displayName ?? other?.name ?? "Anonymous",
+              age: other?.age,
+              facePhotoUrl: iRevealed ? (other?.facePhotoUrl ?? null) : null,
+              avatarUrl: iRevealed ? (other?.avatarUrl ?? null) : null,
+            },
+            updatedAt: m.updatedAt,
+          };
+        })
+      );
+      return enriched;
+    }),
+
+    getMatch: protectedProcedure
+      .input(z.object({ matchId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const match = await getMatchById(input.matchId);
+        if (!match) throw new TRPCError({ code: "NOT_FOUND" });
+        const isUser1 = match.userId1 === ctx.user.id;
+        const isUser2 = match.userId2 === ctx.user.id;
+        if (!isUser1 && !isUser2) throw new TRPCError({ code: "FORBIDDEN" });
+
+        const otherId = isUser1 ? match.userId2 : match.userId1;
+        const other = await getUserById(otherId);
+        const iRevealed = isUser1 ? match.user1Revealed : match.user2Revealed;
+        const iLiked = isUser1 ? match.user1Liked : match.user2Liked;
+
+        return {
+          matchId: match.id,
+          status: match.status,
+          iLiked,
+          iRevealed,
+          mutual: match.user1Liked && match.user2Liked,
+          otherUser: {
+            id: other?.id,
+            displayName: other?.displayName ?? other?.name ?? "Anonymous",
+            age: other?.age,
+            facePhotoUrl: iRevealed ? (other?.facePhotoUrl ?? null) : null,
+            avatarUrl: iRevealed ? (other?.avatarUrl ?? null) : null,
+          },
+        };
+      }),
+  }),
+
+  message: router({
+    getMessages: protectedProcedure
+      .input(z.object({ matchId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const match = await getMatchById(input.matchId);
+        if (!match) throw new TRPCError({ code: "NOT_FOUND" });
+        const isUser1 = match.userId1 === ctx.user.id;
+        const isUser2 = match.userId2 === ctx.user.id;
+        if (!isUser1 && !isUser2) throw new TRPCError({ code: "FORBIDDEN" });
+        return getMessages(input.matchId);
+      }),
+
+    send: protectedProcedure
+      .input(z.object({
+        matchId: z.number(),
+        content: z.string().min(1).max(2000),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const match = await getMatchById(input.matchId);
+        if (!match) throw new TRPCError({ code: "NOT_FOUND" });
+        const isUser1 = match.userId1 === ctx.user.id;
+        const isUser2 = match.userId2 === ctx.user.id;
+        if (!isUser1 && !isUser2) throw new TRPCError({ code: "FORBIDDEN" });
+
+        const { filtered, content } = await filterMessageContent(input.content);
+        const msg = await createMessage(input.matchId, ctx.user.id, content, filtered);
+        return { success: true, message: msg, filtered };
+      }),
+  }),
+
+  subscription: router({
+    activate: protectedProcedure
+      .input(z.object({
+        tier: z.enum(["spark", "flame"]),
+        sessionId: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const amount = input.tier === "spark" ? "2.00" : "5.00";
+        const sub = await createSubscription(ctx.user.id, input.tier, input.sessionId, amount);
+        return { success: true, subscription: sub };
+      }),
+
+    getStatus: protectedProcedure.query(async ({ ctx }) => {
+      const user = await getUserById(ctx.user.id);
+      return {
+        tier: user?.tier ?? "free",
+        tierExpiresAt: user?.tierExpiresAt ?? null,
+        revealCount: user?.revealCount ?? 0,
+      };
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
