@@ -35,6 +35,7 @@ function makeUser(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser
     revealCount: 0,
     revealResetAt: null,
     profileComplete: true,
+    passwordHash: null,
     ...overrides,
   };
 }
@@ -192,5 +193,63 @@ describe("message.send", () => {
     await expect(
       caller.message.send({ matchId: 1, content: "Hello!" })
     ).rejects.toThrow();
+  });
+});
+
+// ── Email/password auth tests ─────────────────────────────────────────────────
+
+describe("auth.login", () => {
+  it("rejects login with missing email", async () => {
+    const setCookies: Array<{ name: string; value: string }> = [];
+    const ctx: TrpcContext = {
+      user: null,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: {
+        cookie: (name: string, value: string) => setCookies.push({ name, value }),
+        clearCookie: () => {},
+      } as unknown as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.login({ email: "notvalid", password: "pass" })
+    ).rejects.toThrow(); // Zod email validation
+  });
+
+  it("rejects login with empty password", async () => {
+    const ctx: TrpcContext = {
+      user: null,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: { cookie: () => {}, clearCookie: () => {} } as unknown as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.login({ email: "test@test.com", password: "" })
+    ).rejects.toThrow(); // Zod min(1) validation
+  });
+});
+
+describe("auth.register", () => {
+  it("rejects register with short password", async () => {
+    const ctx: TrpcContext = {
+      user: null,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: { cookie: () => {}, clearCookie: () => {} } as unknown as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.register({ email: "new@test.com", password: "abc" })
+    ).rejects.toThrow(); // Zod min(6) validation
+  });
+
+  it("rejects register with invalid email", async () => {
+    const ctx: TrpcContext = {
+      user: null,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: { cookie: () => {}, clearCookie: () => {} } as unknown as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.register({ email: "notanemail", password: "password123" })
+    ).rejects.toThrow(); // Zod email validation
   });
 });

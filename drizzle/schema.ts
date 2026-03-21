@@ -37,6 +37,7 @@ export const users = mysqlTable("users", {
   revealCount: int("revealCount").default(0).notNull(),
   revealResetAt: timestamp("revealResetAt"),
   profileComplete: boolean("profileComplete").default(false).notNull(),
+  passwordHash: varchar("passwordHash", { length: 255 }),
 });
 
 export type User = typeof users.$inferSelect;

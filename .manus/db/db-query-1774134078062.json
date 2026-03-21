@@ -1,0 +1,34 @@
+{
+  "query": "-- Set email + passwordHash for all three demo users (password: password123)\nUPDATE users SET \n  email = 'aria@test.com',\n  passwordHash = '$2b$10$rqXfaqfAYfeYPhN49SZC2e51.uvA4nzSmBpy/u4JPFSfq56skqpw.',\n  loginMethod = 'email',\n  ageVerified = 1,\n  faceVerified = 1,\n  profileComplete = 1\nWHERE openId = 'demo-user-1';\n\nUPDATE users SET \n  email = 'sam@test.com',\n  passwordHash = '$2b$10$rqXfaqfAYfeYPhN49SZC2e51.uvA4nzSmBpy/u4JPFSfq56skqpw.',\n  loginMethod = 'email',\n  ageVerified = 1,\n  faceVerified = 1,\n  profileComplete = 1\nWHERE openId = 'demo-user-2';\n\nUPDATE users SET \n  email = 'jordan@test.com',\n  passwordHash = '$2b$10$rqXfaqfAYfeYPhN49SZC2e51.uvA4nzSmBpy/u4JPFSfq56skqpw.',\n  loginMethod = 'email',\n  ageVerified = 1,\n  faceVerified = 1,\n  profileComplete = 1\nWHERE openId = 'demo-user-3';\n\n-- Verify\nSELECT id, displayName, email, tier, ageVerified, faceVerified FROM users WHERE openId IN ('demo-user-1','demo-user-2','demo-user-3');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3wJymtRJgEtKuEz.root --database RMbVjZrpZPYS6STBRSDPqc --execute -- Set email + passwordHash for all three demo users (password: password123)\nUPDATE users SET \n  email = 'aria@test.com',\n  passwordHash = '$2b$10$rqXfaqfAYfeYPhN49SZC2e51.uvA4nzSmBpy/u4JPFSfq56skqpw.',\n  loginMethod = 'email',\n  ageVerified = 1,\n  faceVerified = 1,\n  profileComplete = 1\nWHERE openId = 'demo-user-1';\n\nUPDATE users SET \n  email = 'sam@test.com',\n  passwordHash = '$2b$10$rqXfaqfAYfeYPhN49SZC2e51.uvA4nzSmBpy/u4JPFSfq56skqpw.',\n  loginMethod = 'email',\n  ageVerified = 1,\n  faceVerified = 1,\n  profileComplete = 1\nWHERE openId = 'demo-user-2';\n\nUPDATE users SET \n  email = 'jordan@test.com',\n  passwordHash = '$2b$10$rqXfaqfAYfeYPhN49SZC2e51.uvA4nzSmBpy/u4JPFSfq56skqpw.',\n  loginMethod = 'email',\n  ageVerified = 1,\n  faceVerified = 1,\n  profileComplete = 1\nWHERE openId = 'demo-user-3';\n\n-- Verify\nSELECT id, displayName, email, tier, ageVerified, faceVerified FROM users WHERE openId IN ('demo-user-1','demo-user-2','demo-user-3');",
+  "rows": [
+    {
+      "id": "1",
+      "displayName": "Aria",
+      "email": "aria@test.com",
+      "tier": "spark",
+      "ageVerified": "1",
+      "faceVerified": "1"
+    },
+    {
+      "id": "2",
+      "displayName": "Jordan",
+      "email": "sam@test.com",
+      "tier": "free",
+      "ageVerified": "1",
+      "faceVerified": "1"
+    },
+    {
+      "id": "3",
+      "displayName": "Sam",
+      "email": "jordan@test.com",
+      "tier": "flame",
+      "ageVerified": "1",
+      "faceVerified": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tdisplayName\temail\ttier\tageVerified\tfaceVerified\n1\tAria\taria@test.com\tspark\t1\t1\n2\tJordan\tsam@test.com\tfree\t1\t1\n3\tSam\tjordan@test.com\tflame\t1\t1\n",
+  "stderr": "",
+  "execution_time_ms": 521
+}

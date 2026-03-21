@@ -52,3 +52,7 @@
 - [x] Fix NaN matchId error in Chat page when accessed without a valid matchId param
 - [x] Seed mutual match + chat test scenario for owner account
 - [x] Add Test Panel page for simulating knocks, likes, and mutual matches
+- [x] Add passwordHash column to users table
+- [x] Add email/password register + login tRPC procedures
+- [x] Update Login page with email/password form
+- [x] Seed test accounts: aria@test.com, sam@test.com, jordan@test.com (password: password123)

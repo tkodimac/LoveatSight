@@ -15,6 +15,13 @@
       "when": 1774131472000,
       "tag": "0001_breezy_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1774133895208,
+      "tag": "0002_huge_harpoon",
+      "breakpoints": true
     }
   ]
 }

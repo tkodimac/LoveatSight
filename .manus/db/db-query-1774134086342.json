@@ -1,0 +1,28 @@
+{
+  "query": "-- Fix: id=2 is Jordan, id=3 is Sam (based on displayName)\nUPDATE users SET email = 'jordan@test.com' WHERE id = 2;\nUPDATE users SET email = 'sam@test.com' WHERE id = 3;\n\n-- Verify final state\nSELECT id, displayName, email, tier FROM users WHERE id IN (1,2,3);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3wJymtRJgEtKuEz.root --database RMbVjZrpZPYS6STBRSDPqc --execute -- Fix: id=2 is Jordan, id=3 is Sam (based on displayName)\nUPDATE users SET email = 'jordan@test.com' WHERE id = 2;\nUPDATE users SET email = 'sam@test.com' WHERE id = 3;\n\n-- Verify final state\nSELECT id, displayName, email, tier FROM users WHERE id IN (1,2,3);",
+  "rows": [
+    {
+      "id": "1",
+      "displayName": "Aria",
+      "email": "aria@test.com",
+      "tier": "spark"
+    },
+    {
+      "id": "2",
+      "displayName": "Jordan",
+      "email": "jordan@test.com",
+      "tier": "free"
+    },
+    {
+      "id": "3",
+      "displayName": "Sam",
+      "email": "sam@test.com",
+      "tier": "flame"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tdisplayName\temail\ttier\n1\tAria\taria@test.com\tspark\n2\tJordan\tjordan@test.com\tfree\n3\tSam\tsam@test.com\tflame\n",
+  "stderr": "",
+  "execution_time_ms": 487
+}
