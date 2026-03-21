@@ -1,0 +1,70 @@
+{
+  "query": "SELECT * FROM matches ORDER BY id LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3wJymtRJgEtKuEz.root --database RMbVjZrpZPYS6STBRSDPqc --execute SELECT * FROM matches ORDER BY id LIMIT 20;",
+  "rows": [
+    {
+      "id": "1",
+      "userId1": "2",
+      "userId2": "6",
+      "status": "knocked",
+      "user1Liked": "0",
+      "user2Liked": "0",
+      "user1Revealed": "0",
+      "user2Revealed": "0",
+      "createdAt": "2026-03-21 22:38:55",
+      "updatedAt": "2026-03-21 22:38:55"
+    },
+    {
+      "id": "2",
+      "userId1": "3",
+      "userId2": "6",
+      "status": "knocked",
+      "user1Liked": "0",
+      "user2Liked": "0",
+      "user1Revealed": "0",
+      "user2Revealed": "0",
+      "createdAt": "2026-03-21 22:39:02",
+      "updatedAt": "2026-03-21 22:39:02"
+    },
+    {
+      "id": "3",
+      "userId1": "4",
+      "userId2": "6",
+      "status": "knocked",
+      "user1Liked": "0",
+      "user2Liked": "0",
+      "user1Revealed": "0",
+      "user2Revealed": "0",
+      "createdAt": "2026-03-21 22:39:14",
+      "updatedAt": "2026-03-21 22:39:14"
+    },
+    {
+      "id": "4",
+      "userId1": "5",
+      "userId2": "6",
+      "status": "knocked",
+      "user1Liked": "0",
+      "user2Liked": "0",
+      "user1Revealed": "0",
+      "user2Revealed": "0",
+      "createdAt": "2026-03-21 22:39:18",
+      "updatedAt": "2026-03-21 22:39:18"
+    },
+    {
+      "id": "5",
+      "userId1": "1",
+      "userId2": "6",
+      "status": "knocked",
+      "user1Liked": "0",
+      "user2Liked": "0",
+      "user1Revealed": "0",
+      "user2Revealed": "0",
+      "createdAt": "2026-03-21 22:48:29",
+      "updatedAt": "2026-03-21 22:48:29"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuserId1\tuserId2\tstatus\tuser1Liked\tuser2Liked\tuser1Revealed\tuser2Revealed\tcreatedAt\tupdatedAt\n1\t2\t6\tknocked\t0\t0\t0\t0\t2026-03-21 22:38:55\t2026-03-21 22:38:55\n2\t3\t6\tknocked\t0\t0\t0\t0\t2026-03-21 22:39:02\t2026-03-21 22:39:02\n3\t4\t6\tknocked\t0\t0\t0\t0\t2026-03-21 22:39:14\t2026-03-21 22:39:14\n4\t5\t6\tknocked\t0\t0\t0\t0\t2026-03-21 22:39:18\t2026-03-21 22:39:18\n5\t1\t6\tknocked\t0\t0\t0\t0\t2026-03-21 22:48:29\t2026-03-21 22:48:29\n",
+  "stderr": "",
+  "execution_time_ms": 346
+}

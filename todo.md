@@ -50,3 +50,5 @@
 ## Bug Fixes
 - [x] Fix render-phase navigate() calls causing "Cannot update a component while rendering" error in AgeGate, FaceVerify, Login, Home, Chat, ProfileSetup
 - [x] Fix NaN matchId error in Chat page when accessed without a valid matchId param
+- [x] Seed mutual match + chat test scenario for owner account
+- [x] Add Test Panel page for simulating knocks, likes, and mutual matches

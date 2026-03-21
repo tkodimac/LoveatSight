@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { MapPin, MessageCircle, Zap, Flame, Bell } from "lucide-react";
+import { MapPin, MessageCircle, Zap, Flame, Bell, FlaskConical } from "lucide-react";
 import PaywallPopup from "@/components/PaywallPopup";
 
 type NearbyUser = {
@@ -130,9 +130,19 @@ export default function Home() {
             }}>
             love at sight
           </h1>
-          <button className="p-2 rounded-full" style={{ background: "oklch(0.16 0.04 280)" }}>
-            <Bell className="h-5 w-5 text-muted-foreground" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate("/test-panel")}
+              className="p-2 rounded-full"
+              style={{ background: "oklch(0.55 0.25 295 / 0.15)", border: "1px solid oklch(0.55 0.25 295 / 0.3)" }}
+              title="Test Panel"
+            >
+              <FlaskConical className="h-4 w-4" style={{ color: "oklch(0.65 0.22 295)" }} />
+            </button>
+            <button className="p-2 rounded-full" style={{ background: "oklch(0.16 0.04 280)" }}>
+              <Bell className="h-5 w-5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
       </div>
 
