@@ -23,6 +23,7 @@ export default function Home() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallMatchId, setPaywallMatchId] = useState<number | undefined>();
   const [knockedIds, setKnockedIds] = useState<Set<number>>(new Set());
+  const [pendingKnockId, setPendingKnockId] = useState<number | null>(null);
 
   const { data: user, isLoading } = trpc.auth.me.useQuery();
   const { data: profile } = trpc.user.getProfile.useQuery(undefined, { enabled: !!user });
@@ -37,17 +38,19 @@ export default function Home() {
 
   const updateLocation = trpc.user.updateLocation.useMutation();
   const knockMutation = trpc.match.knock.useMutation({
-    onSuccess: (data) => {
-      if (data.matchId) {
-        setKnockedIds(prev => {
-          const next = new Set(Array.from(prev));
-          next.add(data.matchId!);
-          return next;
-        });
-      }
+    onSuccess: (data, variables) => {
+      setKnockedIds(prev => {
+        const next = new Set(Array.from(prev));
+        next.add(variables.targetUserId);
+        return next;
+      });
+      setPendingKnockId(null);
       toast.success("Knock sent! 💜");
     },
-    onError: () => toast.error("Failed to send knock"),
+    onError: () => {
+      setPendingKnockId(null);
+      toast.error("Failed to send knock");
+    },
   });
 
   // Guard: redirect if not authenticated or profile incomplete
@@ -92,6 +95,8 @@ export default function Home() {
   }, [!!user]);
 
   const handleKnock = (targetId: number) => {
+    if (pendingKnockId !== null) return; // prevent double-fire
+    setPendingKnockId(targetId);
     knockMutation.mutate({ targetUserId: targetId });
   };
 
@@ -196,7 +201,7 @@ export default function Home() {
                   person={person}
                   knocked={knockedIds.has(person.id)}
                   onKnock={() => handleKnock(person.id)}
-                  isPending={knockMutation.isPending}
+                  isPending={pendingKnockId === person.id}
                 />
               ))}
             </div>

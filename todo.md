@@ -56,3 +56,4 @@
 - [x] Add email/password register + login tRPC procedures
 - [x] Update Login page with email/password form
 - [x] Seed test accounts: aria@test.com, sam@test.com, jordan@test.com (password: password123)
+- [x] Fix Knock button selecting wrong user (always knocks first user in list instead of clicked user)
