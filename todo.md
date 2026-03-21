@@ -46,3 +46,6 @@
 - [x] Auth flow tests (18 passing)
 - [x] Chat filter tests (8 filter scenarios)
 - [x] Subscription tier tests
+
+## Bug Fixes
+- [x] Fix render-phase navigate() calls causing "Cannot update a component while rendering" error in AgeGate, FaceVerify, Login, Home, Chat, ProfileSetup

@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { MapPin, MessageCircle, Zap, Flame, Crown, Bell } from "lucide-react";
+import { MapPin, MessageCircle, Zap, Flame, Bell } from "lucide-react";
 import PaywallPopup from "@/components/PaywallPopup";
 
 type NearbyUser = {
@@ -24,36 +24,58 @@ export default function Home() {
   const [paywallMatchId, setPaywallMatchId] = useState<number | undefined>();
   const [knockedIds, setKnockedIds] = useState<Set<number>>(new Set());
 
-  const { data: user } = trpc.auth.me.useQuery();
-  const { data: profile } = trpc.user.getProfile.useQuery();
+  const { data: user, isLoading } = trpc.auth.me.useQuery();
+  const { data: profile } = trpc.user.getProfile.useQuery(undefined, { enabled: !!user });
   const utils = trpc.useUtils();
 
   const nearbyQuery = trpc.user.getNearby.useQuery(
     { latitude: userLat ?? 0, longitude: userLon ?? 0 },
-    { enabled: userLat !== null && userLon !== null }
+    { enabled: userLat !== null && userLon !== null && !!user }
   );
 
-  const { data: myMatches } = trpc.match.getMyMatches.useQuery();
+  const { data: myMatches } = trpc.match.getMyMatches.useQuery(undefined, { enabled: !!user });
 
   const updateLocation = trpc.user.updateLocation.useMutation();
   const knockMutation = trpc.match.knock.useMutation({
     onSuccess: (data) => {
       if (data.matchId) {
-        setKnockedIds(prev => { const next = new Set(Array.from(prev)); next.add(data.matchId!); return next; });
+        setKnockedIds(prev => {
+          const next = new Set(Array.from(prev));
+          next.add(data.matchId!);
+          return next;
+        });
       }
       toast.success("Knock sent! 💜");
     },
     onError: () => toast.error("Failed to send knock"),
   });
 
+  // Guard: redirect if not authenticated or profile incomplete
   useEffect(() => {
-    if (!user) { navigate("/login"); return; }
-    if (!user.ageVerified) { navigate("/age-gate"); return; }
-    if (!user.faceVerified) { navigate("/face-verify"); return; }
-  }, [user, navigate]);
+    if (isLoading) return;
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    if (!user.ageVerified) {
+      navigate("/age-gate");
+      return;
+    }
+    if (!user.faceVerified) {
+      navigate("/face-verify");
+      return;
+    }
+  }, [user, isLoading, navigate]);
 
+  // Get geolocation once
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (!user) return;
+    if (!navigator.geolocation) {
+      setUserLat(51.5074);
+      setUserLon(-0.1278);
+      updateLocation.mutate({ latitude: 51.5074, longitude: -0.1278, locationCity: "London" });
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
@@ -62,13 +84,12 @@ export default function Home() {
         updateLocation.mutate({ latitude, longitude });
       },
       () => {
-        // Fallback: London coordinates for demo
         setUserLat(51.5074);
         setUserLon(-0.1278);
         updateLocation.mutate({ latitude: 51.5074, longitude: -0.1278, locationCity: "London" });
       }
     );
-  }, []);
+  }, [!!user]);
 
   const handleKnock = (targetId: number) => {
     knockMutation.mutate({ targetUserId: targetId });
@@ -80,6 +101,14 @@ export default function Home() {
   };
 
   const recentMatches = myMatches?.filter(m => m.status !== "knocked").slice(0, 3) ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="app-container flex items-center justify-center min-h-dvh">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!user) return null;
 
@@ -238,7 +267,7 @@ export default function Home() {
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold animate-silhouette"
                     style={{ background: "linear-gradient(135deg, oklch(0.30 0.10 285), oklch(0.20 0.06 280))" }}>
                     {match.iRevealed && match.otherUser.facePhotoUrl ? (
-                      <img src={match.otherUser.facePhotoUrl} className="w-full h-full rounded-full object-cover" />
+                      <img src={match.otherUser.facePhotoUrl} className="w-full h-full rounded-full object-cover" alt="" />
                     ) : (
                       <span style={{ color: "oklch(0.65 0.10 285)" }}>?</span>
                     )}
@@ -299,13 +328,11 @@ function NearbyCard({
             border: "2px solid oklch(0.35 0.10 285 / 0.5)",
           }}
         >
-          {/* Silhouette SVG */}
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.5 }}>
             <circle cx="12" cy="8" r="4" fill="oklch(0.65 0.10 285)" />
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="oklch(0.65 0.10 285)" />
           </svg>
         </div>
-        {/* Heartbeat pulse ring */}
         <div
           className="absolute inset-0 rounded-full animate-pulse-glow pointer-events-none"
           style={{ opacity: 0.4 }}

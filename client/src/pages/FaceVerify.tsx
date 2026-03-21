@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ export default function FaceVerify() {
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { data: user } = trpc.auth.me.useQuery();
+  const { data: user, isLoading } = trpc.auth.me.useQuery();
 
   const completeFaceVerify = trpc.user.completeFaceVerify.useMutation({
     onSuccess: () => {
@@ -21,9 +21,34 @@ export default function FaceVerify() {
     },
   });
 
-  if (!user) { navigate("/login"); return null; }
-  if (!user.ageVerified) { navigate("/age-gate"); return null; }
-  if (user.faceVerified) { navigate("/home"); return null; }
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    if (!user.ageVerified) {
+      navigate("/age-gate");
+      return;
+    }
+    if (user.faceVerified) {
+      if (!user.displayName) {
+        navigate("/profile-setup");
+      } else {
+        navigate("/home");
+      }
+    }
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="app-container flex items-center justify-center min-h-dvh">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user || !user.ageVerified || user.faceVerified) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,7 +70,6 @@ export default function FaceVerify() {
     if (!preview) return;
     setUploading(true);
     try {
-      // In a real app, upload to S3 first. For demo, we pass null.
       completeFaceVerify.mutate({ facePhotoUrl: undefined, skipped: false });
     } finally {
       setUploading(false);

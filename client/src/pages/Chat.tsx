@@ -19,15 +19,21 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const utils = trpc.useUtils();
 
-  const { data: user } = trpc.auth.me.useQuery();
+  const { data: user, isLoading } = trpc.auth.me.useQuery();
   const { data: match, refetch: refetchMatch } = trpc.match.getMatch.useQuery(
     { matchId },
-    { enabled: !!matchId && matchId > 0, refetchInterval: 5000 }
+    { enabled: !!matchId && matchId > 0 && !!user, refetchInterval: 5000 }
   );
   const { data: messages, refetch: refetchMessages } = trpc.message.getMessages.useQuery(
     { matchId },
-    { enabled: !!matchId && matchId > 0, refetchInterval: 3000 }
+    { enabled: !!matchId && matchId > 0 && !!user, refetchInterval: 3000 }
   );
+
+  // Guard: redirect if not authenticated
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) navigate("/login");
+  }, [user, isLoading, navigate]);
 
   const sendMutation = trpc.message.send.useMutation({
     onSuccess: (data) => {
@@ -75,10 +81,6 @@ export default function Chat() {
   });
 
   useEffect(() => {
-    if (!user) navigate("/login");
-  }, [user, navigate]);
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -113,6 +115,14 @@ export default function Chat() {
       navigate("/home");
     }, 1500);
   };
+
+  if (isLoading) {
+    return (
+      <div className="app-container flex items-center justify-center min-h-dvh">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!user) return null;
 
@@ -308,7 +318,6 @@ export default function Chat() {
           onSuccess={() => {
             setShowPaywall(false);
             utils.user.getProfile.invalidate();
-            // Trigger reveal after payment
             setTimeout(() => {
               revealMutation.mutate({ matchId });
             }, 500);

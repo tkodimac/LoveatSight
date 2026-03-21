@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,15 @@ export default function ProfileSetup() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
 
-  const { data: user } = trpc.auth.me.useQuery();
+  const { data: user, isLoading } = trpc.auth.me.useQuery();
+
+  // Guard: redirect if not authenticated
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) {
+      navigate("/login");
+    }
+  }, [user, isLoading, navigate]);
 
   const updateProfile = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
@@ -19,7 +27,15 @@ export default function ProfileSetup() {
     onError: () => toast.error("Failed to save profile"),
   });
 
-  if (!user) { navigate("/login"); return null; }
+  if (isLoading) {
+    return (
+      <div className="app-container flex items-center justify-center min-h-dvh">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const handleSave = () => {
     if (!displayName.trim()) {

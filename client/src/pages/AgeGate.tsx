@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -9,27 +9,44 @@ export default function AgeGate() {
   const [, navigate] = useLocation();
   const [birthDate, setBirthDate] = useState("");
   const [showError, setShowError] = useState(false);
-  const { data: user } = trpc.auth.me.useQuery();
+  const { data: user, isLoading } = trpc.auth.me.useQuery();
 
   const completeAgeGate = trpc.user.completeAgeGate.useMutation({
     onSuccess: () => {
       navigate("/face-verify");
     },
-    onError: (err) => {
+    onError: () => {
       setShowError(true);
     },
   });
 
-  if (!user) {
-    navigate("/login");
-    return null;
+  useEffect(() => {
+    if (isLoading || !user) return;
+    if (!user.ageVerified) return; // stay on this page
+    if (!user.faceVerified) {
+      navigate("/face-verify");
+    } else if (!user.displayName) {
+      navigate("/profile-setup");
+    } else {
+      navigate("/home");
+    }
+  }, [user, isLoading, navigate]);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/login");
+    }
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="app-container flex items-center justify-center min-h-dvh">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
   }
 
-  if (user.ageVerified) {
-    if (!user.faceVerified) navigate("/face-verify");
-    else navigate("/home");
-    return null;
-  }
+  if (!user) return null;
 
   const handleContinue = () => {
     if (!birthDate) {

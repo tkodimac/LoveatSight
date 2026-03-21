@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
@@ -7,19 +7,31 @@ import { Heart, Sparkles } from "lucide-react";
 
 export default function Login() {
   const [, navigate] = useLocation();
-  const { data: user } = trpc.auth.me.useQuery();
+  const { data: user, isLoading } = trpc.auth.me.useQuery();
 
-  // If already logged in, redirect
-  if (user) {
+  useEffect(() => {
+    if (isLoading || !user) return;
     if (!user.ageVerified) {
       navigate("/age-gate");
     } else if (!user.faceVerified) {
       navigate("/face-verify");
+    } else if (!user.displayName) {
+      navigate("/profile-setup");
     } else {
       navigate("/home");
     }
-    return null;
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="app-container flex items-center justify-center min-h-dvh">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
   }
+
+  // Already logged in — useEffect will redirect
+  if (user) return null;
 
   const handleLogin = () => {
     window.location.href = getLoginUrl();
