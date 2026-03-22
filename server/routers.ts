@@ -20,6 +20,7 @@ import {
   getNearbyUsers,
   getOrCreateMatch,
   getPendingNotifications,
+  getSentKnockNotifications,
   getUserByEmail,
   getUserById,
   getUserMatches,
@@ -443,6 +444,20 @@ export const appRouter = router({
           .map(n => updateKnockNotification(n.id, { clearedAt: new Date() }))
       );
       return { success: true };
+    }),
+
+    // Returns the status of knocks I sent to others (for Knock button state on nearby cards)
+    getMySentKnocks: protectedProcedure.query(async ({ ctx }) => {
+      const sent = await getSentKnockNotifications(ctx.user.id);
+      // Return map: receiverId -> latest status
+      const map: Record<number, "pending" | "accepted" | "rejected" | "ignored"> = {};
+      for (const n of sent) {
+        // Only keep the latest entry per receiver
+        if (!map[n.receiverId]) {
+          map[n.receiverId] = n.status;
+        }
+      }
+      return map;
     }),
   }),
 

@@ -64,3 +64,6 @@
 - [x] Add reject double-confirm dialog (prompted twice before final rejection)
 - [x] Enforce 6-hour knock cooldown after rejection
 - [x] Integrate NotificationBar into Home page with polling
+- [x] Add notification badge to Bell icon (shows pending knock count)
+- [x] Knock button changes to "Chat" when accepted, "Locked" when rejected
+- [x] Fix nested button HTML error on Home page (button inside button)

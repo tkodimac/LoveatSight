@@ -87,9 +87,12 @@ export default function KnockNotificationBar() {
       }}
     >
       {/* Header */}
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center justify-between px-4 py-3"
+        onKeyDown={(e) => e.key === "Enter" && setExpanded(prev => !prev)}
+        className="w-full flex items-center justify-between px-4 py-3 cursor-pointer select-none"
         style={{ borderBottom: expanded ? "1px solid oklch(0.22 0.06 285 / 0.5)" : "none" }}
       >
         <div className="flex items-center gap-2">
@@ -127,7 +130,7 @@ export default function KnockNotificationBar() {
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           )}
         </div>
-      </button>
+      </div>
 
       {/* Notification list */}
       {expanded && (

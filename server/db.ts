@@ -280,6 +280,17 @@ export async function updateKnockNotification(
   await db.update(knockNotifications).set(data as any).where(eq(knockNotifications.id, id));
 }
 
+// Get all notifications sent BY a user (as knocker) — used to show button state on nearby cards
+export async function getSentKnockNotifications(knockerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(knockNotifications)
+    .where(eq(knockNotifications.knockerId, knockerId))
+    .orderBy(desc(knockNotifications.updatedAt));
+}
+
 // Check if knocker is on cooldown for a specific receiver (6-hour block after final rejection)
 export async function getKnockCooldown(knockerId: number, receiverId: number) {
   const db = await getDb();

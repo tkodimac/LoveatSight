@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { MapPin, MessageCircle, Zap, Flame, Bell, FlaskConical } from "lucide-react";
+import { MapPin, MessageCircle, Zap, Flame, Bell, FlaskConical, Lock } from "lucide-react";
 import PaywallPopup from "@/components/PaywallPopup";
 import KnockNotificationBar from "@/components/KnockNotificationBar";
 
@@ -25,6 +25,7 @@ export default function Home() {
   const [paywallMatchId, setPaywallMatchId] = useState<number | undefined>();
   const [knockedIds, setKnockedIds] = useState<Set<number>>(new Set());
   const [pendingKnockId, setPendingKnockId] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(true);
 
   const { data: user, isLoading } = trpc.auth.me.useQuery();
   const { data: profile } = trpc.user.getProfile.useQuery(undefined, { enabled: !!user });
@@ -36,6 +37,26 @@ export default function Home() {
   );
 
   const { data: myMatches } = trpc.match.getMyMatches.useQuery(undefined, { enabled: !!user });
+
+  // Notifications — used for Bell badge (incoming knocks)
+  const { data: myNotifications = [] } = trpc.notification.getMyNotifications.useQuery(
+    undefined,
+    { enabled: !!user, refetchInterval: 5000 }
+  );
+  const pendingKnockCount = myNotifications.filter((n: { status: string }) => n.status === "pending").length;
+
+  // Sent knocks — used for Knock button state on nearby cards
+  const { data: sentKnocksRaw } = trpc.notification.getMySentKnocks.useQuery(
+    undefined,
+    { enabled: !!user, refetchInterval: 5000 }
+  );
+  // sentKnocksRaw is Record<number, status> keyed by receiverId
+  const knockStatusMap = new Map<number, "pending" | "accepted" | "rejected" | "ignored">();
+  if (sentKnocksRaw) {
+    for (const [receiverId, status] of Object.entries(sentKnocksRaw)) {
+      knockStatusMap.set(Number(receiverId), status as "pending" | "accepted" | "rejected" | "ignored");
+    }
+  }
 
   const updateLocation = trpc.user.updateLocation.useMutation();
   const knockMutation = trpc.match.knock.useMutation({
@@ -145,8 +166,17 @@ export default function Home() {
             >
               <FlaskConical className="h-4 w-4" style={{ color: "oklch(0.65 0.22 295)" }} />
             </button>
-            <button className="p-2 rounded-full" style={{ background: "oklch(0.16 0.04 280)" }}>
+            <button className="relative p-2 rounded-full" style={{ background: "oklch(0.16 0.04 280)" }}
+              onClick={() => setExpanded(e => !e)}>
               <Bell className="h-5 w-5 text-muted-foreground" />
+              {pendingKnockCount > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center px-1"
+                  style={{ background: "oklch(0.65 0.22 50)", color: "white", lineHeight: 1 }}
+                >
+                  {pendingKnockCount > 9 ? "9+" : pendingKnockCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -204,7 +234,10 @@ export default function Home() {
                   key={person.id}
                   person={person}
                   knocked={knockedIds.has(person.id)}
+                  knockStatus={knockStatusMap.get(person.id) ?? null}
+                  matchId={myMatches?.find(m => m.otherUser.id === person.id)?.matchId ?? null}
                   onKnock={() => handleKnock(person.id)}
+                  onChat={(matchId) => navigate(`/chat/${matchId}`)}
                   isPending={pendingKnockId === person.id}
                 />
               ))}
@@ -324,12 +357,18 @@ export default function Home() {
 function NearbyCard({
   person,
   knocked,
+  knockStatus,
+  matchId,
   onKnock,
+  onChat,
   isPending,
 }: {
   person: NearbyUser;
   knocked: boolean;
+  knockStatus: "pending" | "accepted" | "rejected" | "ignored" | null;
+  matchId: number | null;
   onKnock: () => void;
+  onChat: (matchId: number) => void;
   isPending: boolean;
 }) {
   const dist = person.distance < 1
@@ -370,22 +409,57 @@ function NearbyCard({
         </div>
       </div>
 
-      {/* Knock button */}
-      <Button
-        size="sm"
-        onClick={onKnock}
-        disabled={knocked || isPending}
-        className="rounded-xl h-9 px-4 text-xs font-semibold flex-shrink-0"
-        style={{
-          background: knocked
-            ? "oklch(0.22 0.04 280)"
-            : "linear-gradient(135deg, oklch(0.55 0.25 295), oklch(0.45 0.20 280))",
-          border: "none",
-          color: knocked ? "oklch(0.55 0.10 285)" : "white",
-        }}
-      >
-        {knocked ? "Knocked ✓" : "Knock 💜"}
-      </Button>
+      {/* Knock / Chat / Locked button */}
+      {knockStatus === "accepted" && matchId ? (
+        <Button
+          size="sm"
+          onClick={() => onChat(matchId)}
+          className="rounded-xl h-9 px-4 text-xs font-semibold flex-shrink-0"
+          style={{
+            background: "linear-gradient(135deg, oklch(0.50 0.22 145), oklch(0.42 0.18 145))",
+            border: "none",
+            color: "white",
+          }}
+        >
+          <MessageCircle className="h-3.5 w-3.5 mr-1" />
+          Chat
+        </Button>
+      ) : knockStatus === "rejected" || knockStatus === "ignored" ? (
+        <Button
+          size="sm"
+          disabled
+          className="rounded-xl h-9 px-4 text-xs font-semibold flex-shrink-0"
+          style={{
+            background: "oklch(0.18 0.04 280)",
+            border: "1px solid oklch(0.30 0.06 280)",
+            color: "oklch(0.45 0.08 285)",
+          }}
+        >
+          <Lock className="h-3.5 w-3.5 mr-1" />
+          Locked
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          onClick={onKnock}
+          disabled={knocked || isPending || knockStatus === "pending"}
+          className="rounded-xl h-9 px-4 text-xs font-semibold flex-shrink-0"
+          style={{
+            background: knocked || knockStatus === "pending"
+              ? "oklch(0.22 0.04 280)"
+              : "linear-gradient(135deg, oklch(0.55 0.25 295), oklch(0.45 0.20 280))",
+            border: "none",
+            color: knocked || knockStatus === "pending" ? "oklch(0.55 0.10 285)" : "white",
+          }}
+        >
+          {isPending ? (
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />
+              Sending
+            </span>
+          ) : knocked || knockStatus === "pending" ? "Knocked ✓" : "Knock 💜"}
+        </Button>
+      )}
     </div>
   );
 }
