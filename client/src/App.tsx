@@ -12,6 +12,7 @@ import Home from "./pages/Home";
 import Chat from "./pages/Chat";
 import ProfileSetup from "./pages/ProfileSetup";
 import TestPanel from "./pages/TestPanel";
+import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path={"/chat/:matchId"} component={Chat} />
       <Route path={"/profile-setup"} component={ProfileSetup} />
       <Route path={"/test-panel"} component={TestPanel} />
+      <Route path={"/subscription/success"} component={SubscriptionSuccess} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

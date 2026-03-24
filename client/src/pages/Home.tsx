@@ -50,13 +50,15 @@ export default function Home() {
     undefined,
     { enabled: !!user, refetchInterval: 5000 }
   );
-  // sentKnocksRaw is Record<number, { status }> keyed by receiverId
+  // sentKnocksRaw is Record<number, { status, expiresAt? }> keyed by receiverId
   type KnockStatus = "pending" | "accepted" | "rejected" | "busy" | "available";
   const knockStatusMap = new Map<number, KnockStatus>();
+  const knockExpiresAtMap = new Map<number, number>(); // ms timestamp
   if (sentKnocksRaw) {
     for (const [receiverId, entry] of Object.entries(sentKnocksRaw)) {
-      const e = entry as { status: KnockStatus };
+      const e = entry as { status: KnockStatus; expiresAt?: number };
       knockStatusMap.set(Number(receiverId), e.status);
+      if (e.expiresAt) knockExpiresAtMap.set(Number(receiverId), e.expiresAt);
     }
   }
 
@@ -237,6 +239,7 @@ export default function Home() {
                   person={person}
                   knocked={knockedIds.has(person.id)}
                   knockStatus={knockStatusMap.get(person.id) ?? null}
+                  knockExpiresAt={knockExpiresAtMap.get(person.id) ?? null}
                   matchId={myMatches?.find(m => m.otherUser.id === person.id)?.matchId ?? null}
                   onKnock={() => handleKnock(person.id)}
                   onChat={(matchId) => navigate(`/chat/${matchId}`)}
@@ -380,6 +383,7 @@ function NearbyCard({
   person,
   knocked,
   knockStatus,
+  knockExpiresAt,
   matchId,
   onKnock,
   onChat,
@@ -388,11 +392,31 @@ function NearbyCard({
   person: NearbyUser;
   knocked: boolean;
   knockStatus: "pending" | "accepted" | "rejected" | "busy" | "available" | null;
+  knockExpiresAt: number | null; // ms timestamp for countdown
   matchId: number | null;
   onKnock: () => void;
   onChat: (matchId: number) => void;
   isPending: boolean;
 }) {
+  // Live countdown for Locked (6h) and Busy (15min) states
+  const [countdownLabel, setCountdownLabel] = useState<string | null>(null);
+  useEffect(() => {
+    if (!knockExpiresAt) { setCountdownLabel(null); return; }
+    const update = () => {
+      const ms = knockExpiresAt - Date.now();
+      if (ms <= 0) { setCountdownLabel(null); return; }
+      const h = Math.floor(ms / 3_600_000);
+      const m = Math.floor((ms % 3_600_000) / 60_000);
+      const s = Math.floor((ms % 60_000) / 1_000);
+      if (h > 0) setCountdownLabel(`${h}h ${m}m`);
+      else if (m > 0) setCountdownLabel(`${m}m ${s}s`);
+      else setCountdownLabel(`${s}s`);
+    };
+    update();
+    const id = setInterval(update, 1_000);
+    return () => clearInterval(id);
+  }, [knockExpiresAt]);
+
   const dist = person.distance < 1
     ? `${Math.round(person.distance * 1000)}m`
     : `${person.distance.toFixed(1)}km`;
@@ -459,7 +483,7 @@ function NearbyCard({
           }}
         >
           <Lock className="h-3.5 w-3.5 mr-1" />
-          Locked
+          {countdownLabel ? `Locked · ${countdownLabel}` : "Locked"}
         </Button>
       ) : knockStatus === "busy" ? (
         // Ignored → show Busy for 15 minutes, then resets
@@ -474,7 +498,7 @@ function NearbyCard({
           }}
         >
           <span className="mr-1">⏳</span>
-          Busy
+          {countdownLabel ? `Busy · ${countdownLabel}` : "Busy"}
         </Button>
       ) : (
         <Button

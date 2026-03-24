@@ -2,6 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
+import Stripe from "stripe";
+import { STRIPE_PRODUCTS } from "./stripe/products";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -451,15 +453,21 @@ export const appRouter = router({
     getMySentKnocks: protectedProcedure.query(async ({ ctx }) => {
       const sent = await getSentKnockNotifications(ctx.user.id);
       const now = Date.now();
-      // Return map: receiverId -> { status }
-      const map: Record<number, { status: "pending" | "accepted" | "rejected" | "busy" | "available" }> = {};
+      // Return map: receiverId -> { status, expiresAt? }
+      const map: Record<number, { status: "pending" | "accepted" | "rejected" | "busy" | "available"; expiresAt?: number }> = {};
       for (const n of sent) {
         // Only keep the latest entry per receiver
         if (!map[n.receiverId]) {
           if (n.status === "ignored") {
-            // If busyUntil is still in the future → show "busy", else → available (can knock again)
-            const busy = n.busyUntil && new Date(n.busyUntil).getTime() > now;
-            map[n.receiverId] = { status: busy ? "busy" : "available" };
+            // If busyUntil is still in the future → show "busy" with countdown, else → available
+            const busyUntilMs = n.busyUntil ? new Date(n.busyUntil).getTime() : 0;
+            const busy = busyUntilMs > now;
+            map[n.receiverId] = { status: busy ? "busy" : "available", expiresAt: busy ? busyUntilMs : undefined };
+          } else if (n.status === "rejected" && n.cooldownUntil) {
+            // Rejected with 6h cooldown → include expiry for countdown
+            const cooldownMs = new Date(n.cooldownUntil).getTime();
+            const locked = cooldownMs > now;
+            map[n.receiverId] = { status: locked ? "rejected" : "available", expiresAt: locked ? cooldownMs : undefined };
           } else {
             map[n.receiverId] = { status: n.status };
           }
@@ -470,6 +478,45 @@ export const appRouter = router({
   }),
 
   subscription: router({
+    createCheckoutSession: protectedProcedure
+      .input(z.object({
+        tier: z.enum(["spark", "flame"]),
+        origin: z.string().url(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+          apiVersion: "2026-02-25.clover",
+        });
+        const product = STRIPE_PRODUCTS[input.tier];
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ["card"],
+          mode: "payment",
+          line_items: [{
+            price_data: {
+              currency: product.currency,
+              product_data: {
+                name: product.name,
+                description: product.description,
+              },
+              unit_amount: product.amount,
+            },
+            quantity: 1,
+          }],
+          client_reference_id: ctx.user.id.toString(),
+          customer_email: ctx.user.email ?? undefined,
+          metadata: {
+            user_id: ctx.user.id.toString(),
+            tier: input.tier,
+            customer_email: ctx.user.email ?? "",
+            customer_name: ctx.user.name ?? "",
+          },
+          allow_promotion_codes: true,
+          success_url: `${input.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}&tier=${input.tier}`,
+          cancel_url: `${input.origin}/home`,
+        });
+        return { url: session.url! };
+      }),
+
     activate: protectedProcedure
       .input(z.object({
         tier: z.enum(["spark", "flame"]),
