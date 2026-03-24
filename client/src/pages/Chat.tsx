@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useParams } from "wouter";
+import { useLocation, useParams, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -12,7 +12,9 @@ export default function Chat() {
   const matchId = parseInt(matchIdStr ?? "", 10);
   const isValidMatchId = !isNaN(matchId) && matchId > 0;
   const [, navigate] = useLocation();
-  const [message, setMessage] = useState("");
+  const searchString = useSearch();
+  const welcomeParam = new URLSearchParams(searchString).get("welcome");
+  const [message, setMessage] = useState(welcomeParam === "1" ? "Hey! \u{1F44B}" : "");
   const [showPaywall, setShowPaywall] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
   const [revealData, setRevealData] = useState<{ displayName: string; facePhotoUrl: string | null } | null>(null);

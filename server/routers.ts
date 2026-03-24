@@ -449,12 +449,12 @@ export const appRouter = router({
     // Returns the status of knocks I sent to others (for Knock button state on nearby cards)
     getMySentKnocks: protectedProcedure.query(async ({ ctx }) => {
       const sent = await getSentKnockNotifications(ctx.user.id);
-      // Return map: receiverId -> latest status
-      const map: Record<number, "pending" | "accepted" | "rejected" | "ignored"> = {};
+      // Return map: receiverId -> { status, cooldownUntil }
+      const map: Record<number, { status: "pending" | "accepted" | "rejected" | "ignored"; cooldownUntil: Date | null }> = {};
       for (const n of sent) {
         // Only keep the latest entry per receiver
         if (!map[n.receiverId]) {
-          map[n.receiverId] = n.status;
+          map[n.receiverId] = { status: n.status, cooldownUntil: n.cooldownUntil };
         }
       }
       return map;

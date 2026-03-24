@@ -1,8 +1,38 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Bell, Check, X, Minus, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { useLocation } from "wouter";
+
+/** Play a soft chime using the Web Audio API */
+function playKnockChime() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);        // A5
+    osc.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.08); // D6
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.35);
+    // Clean up after playback
+    osc.onended = () => ctx.close();
+  } catch {
+    // AudioContext may be blocked until user interaction — silently ignore
+  }
+}
+
+/** Trigger a short vibration on supported devices */
+function vibrateDevice() {
+  try {
+    if (navigator.vibrate) navigator.vibrate(200);
+  } catch {
+    // vibrate not supported — silently ignore
+  }
+}
 
 type Notification = {
   id: number;
@@ -20,6 +50,8 @@ export default function KnockNotificationBar() {
   const [expanded, setExpanded] = useState(true);
   // Track which notification is awaiting second reject confirmation
   const [confirmingRejectId, setConfirmingRejectId] = useState<number | null>(null);
+  // Track previous pending IDs to detect new arrivals
+  const prevPendingIdsRef = useRef<Set<number>>(new Set());
 
   const utils = trpc.useUtils();
 
@@ -27,12 +59,30 @@ export default function KnockNotificationBar() {
     refetchInterval: 5000, // poll every 5s for new knocks
   });
 
+  // Detect new pending knocks and fire sound + vibration
+  useEffect(() => {
+    const currentPending = notifications.filter((n: Notification) => n.status === "pending");
+    const currentIds = new Set(currentPending.map((n: Notification) => n.id));
+    const prevIds = prevPendingIdsRef.current;
+
+    // Check if there are genuinely new pending IDs (not just first load)
+    if (prevIds.size > 0) {
+      const hasNew = currentPending.some((n: Notification) => !prevIds.has(n.id));
+      if (hasNew) {
+        playKnockChime();
+        vibrateDevice();
+      }
+    }
+
+    prevPendingIdsRef.current = currentIds;
+  }, [notifications]);
+
   const acceptMutation = trpc.notification.accept.useMutation({
     onSuccess: (data) => {
       utils.notification.getMyNotifications.invalidate();
       utils.match.getMyMatches.invalidate();
       toast.success("Knock accepted! 💜 Say hello in chat.");
-      navigate(`/chat/${data.matchId}`);
+      navigate(`/chat/${data.matchId}?welcome=1`);
     },
     onError: () => toast.error("Failed to accept knock"),
   });

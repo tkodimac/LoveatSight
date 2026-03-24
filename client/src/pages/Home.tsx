@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -50,11 +50,14 @@ export default function Home() {
     undefined,
     { enabled: !!user, refetchInterval: 5000 }
   );
-  // sentKnocksRaw is Record<number, status> keyed by receiverId
+  // sentKnocksRaw is Record<number, { status, cooldownUntil }> keyed by receiverId
   const knockStatusMap = new Map<number, "pending" | "accepted" | "rejected" | "ignored">();
+  const knockCooldownMap = new Map<number, Date | null>();
   if (sentKnocksRaw) {
-    for (const [receiverId, status] of Object.entries(sentKnocksRaw)) {
-      knockStatusMap.set(Number(receiverId), status as "pending" | "accepted" | "rejected" | "ignored");
+    for (const [receiverId, entry] of Object.entries(sentKnocksRaw)) {
+      const e = entry as { status: "pending" | "accepted" | "rejected" | "ignored"; cooldownUntil: string | Date | null };
+      knockStatusMap.set(Number(receiverId), e.status);
+      knockCooldownMap.set(Number(receiverId), e.cooldownUntil ? new Date(e.cooldownUntil) : null);
     }
   }
 
@@ -235,6 +238,7 @@ export default function Home() {
                   person={person}
                   knocked={knockedIds.has(person.id)}
                   knockStatus={knockStatusMap.get(person.id) ?? null}
+                  cooldownUntil={knockCooldownMap.get(person.id) ?? null}
                   matchId={myMatches?.find(m => m.otherUser.id === person.id)?.matchId ?? null}
                   onKnock={() => handleKnock(person.id)}
                   onChat={(matchId) => navigate(`/chat/${matchId}`)}
@@ -354,10 +358,31 @@ export default function Home() {
   );
 }
 
+function useCooldownCountdown(cooldownUntil: Date | null): string | null {
+  const [label, setLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!cooldownUntil) { setLabel(null); return; }
+    const update = () => {
+      const ms = new Date(cooldownUntil).getTime() - Date.now();
+      if (ms <= 0) { setLabel(null); return; }
+      const h = Math.floor(ms / (1000 * 60 * 60));
+      const m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+      setLabel(h > 0 ? `${h}h ${m}m` : `${m}m`);
+    };
+    update();
+    const id = setInterval(update, 30_000); // refresh every 30s
+    return () => clearInterval(id);
+  }, [cooldownUntil]);
+
+  return label;
+}
+
 function NearbyCard({
   person,
   knocked,
   knockStatus,
+  cooldownUntil,
   matchId,
   onKnock,
   onChat,
@@ -366,11 +391,13 @@ function NearbyCard({
   person: NearbyUser;
   knocked: boolean;
   knockStatus: "pending" | "accepted" | "rejected" | "ignored" | null;
+  cooldownUntil: Date | null;
   matchId: number | null;
   onKnock: () => void;
   onChat: (matchId: number) => void;
   isPending: boolean;
 }) {
+  const cooldownLabel = useCooldownCountdown(cooldownUntil);
   const dist = person.distance < 1
     ? `${Math.round(person.distance * 1000)}m`
     : `${person.distance.toFixed(1)}km`;
@@ -436,7 +463,7 @@ function NearbyCard({
           }}
         >
           <Lock className="h-3.5 w-3.5 mr-1" />
-          Locked
+          {cooldownLabel ? `Locked \u00B7 ${cooldownLabel}` : "Locked"}
         </Button>
       ) : (
         <Button
