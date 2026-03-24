@@ -422,7 +422,8 @@ export const appRouter = router({
         const notif = await getKnockNotificationById(input.notificationId);
         if (!notif) throw new TRPCError({ code: "NOT_FOUND" });
         if (notif.receiverId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
-        await updateKnockNotification(notif.id, { status: "ignored" });
+        const busyUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+        await updateKnockNotification(notif.id, { status: "ignored", busyUntil });
         return { success: true };
       }),
 
@@ -449,12 +450,19 @@ export const appRouter = router({
     // Returns the status of knocks I sent to others (for Knock button state on nearby cards)
     getMySentKnocks: protectedProcedure.query(async ({ ctx }) => {
       const sent = await getSentKnockNotifications(ctx.user.id);
-      // Return map: receiverId -> { status, cooldownUntil }
-      const map: Record<number, { status: "pending" | "accepted" | "rejected" | "ignored"; cooldownUntil: Date | null }> = {};
+      const now = Date.now();
+      // Return map: receiverId -> { status }
+      const map: Record<number, { status: "pending" | "accepted" | "rejected" | "busy" | "available" }> = {};
       for (const n of sent) {
         // Only keep the latest entry per receiver
         if (!map[n.receiverId]) {
-          map[n.receiverId] = { status: n.status, cooldownUntil: n.cooldownUntil };
+          if (n.status === "ignored") {
+            // If busyUntil is still in the future → show "busy", else → available (can knock again)
+            const busy = n.busyUntil && new Date(n.busyUntil).getTime() > now;
+            map[n.receiverId] = { status: busy ? "busy" : "available" };
+          } else {
+            map[n.receiverId] = { status: n.status };
+          }
         }
       }
       return map;

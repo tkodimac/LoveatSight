@@ -50,14 +50,13 @@ export default function Home() {
     undefined,
     { enabled: !!user, refetchInterval: 5000 }
   );
-  // sentKnocksRaw is Record<number, { status, cooldownUntil }> keyed by receiverId
-  const knockStatusMap = new Map<number, "pending" | "accepted" | "rejected" | "ignored">();
-  const knockCooldownMap = new Map<number, Date | null>();
+  // sentKnocksRaw is Record<number, { status }> keyed by receiverId
+  type KnockStatus = "pending" | "accepted" | "rejected" | "busy" | "available";
+  const knockStatusMap = new Map<number, KnockStatus>();
   if (sentKnocksRaw) {
     for (const [receiverId, entry] of Object.entries(sentKnocksRaw)) {
-      const e = entry as { status: "pending" | "accepted" | "rejected" | "ignored"; cooldownUntil: string | Date | null };
+      const e = entry as { status: KnockStatus };
       knockStatusMap.set(Number(receiverId), e.status);
-      knockCooldownMap.set(Number(receiverId), e.cooldownUntil ? new Date(e.cooldownUntil) : null);
     }
   }
 
@@ -238,7 +237,6 @@ export default function Home() {
                   person={person}
                   knocked={knockedIds.has(person.id)}
                   knockStatus={knockStatusMap.get(person.id) ?? null}
-                  cooldownUntil={knockCooldownMap.get(person.id) ?? null}
                   matchId={myMatches?.find(m => m.otherUser.id === person.id)?.matchId ?? null}
                   onKnock={() => handleKnock(person.id)}
                   onChat={(matchId) => navigate(`/chat/${matchId}`)}
@@ -382,7 +380,6 @@ function NearbyCard({
   person,
   knocked,
   knockStatus,
-  cooldownUntil,
   matchId,
   onKnock,
   onChat,
@@ -390,14 +387,12 @@ function NearbyCard({
 }: {
   person: NearbyUser;
   knocked: boolean;
-  knockStatus: "pending" | "accepted" | "rejected" | "ignored" | null;
-  cooldownUntil: Date | null;
+  knockStatus: "pending" | "accepted" | "rejected" | "busy" | "available" | null;
   matchId: number | null;
   onKnock: () => void;
   onChat: (matchId: number) => void;
   isPending: boolean;
 }) {
-  const cooldownLabel = useCooldownCountdown(cooldownUntil);
   const dist = person.distance < 1
     ? `${Math.round(person.distance * 1000)}m`
     : `${person.distance.toFixed(1)}km`;
@@ -451,7 +446,8 @@ function NearbyCard({
           <MessageCircle className="h-3.5 w-3.5 mr-1" />
           Chat
         </Button>
-      ) : knockStatus === "rejected" || knockStatus === "ignored" ? (
+      ) : knockStatus === "rejected" ? (
+        // Rejected → permanently locked until cooldown expires
         <Button
           size="sm"
           disabled
@@ -463,7 +459,22 @@ function NearbyCard({
           }}
         >
           <Lock className="h-3.5 w-3.5 mr-1" />
-          {cooldownLabel ? `Locked \u00B7 ${cooldownLabel}` : "Locked"}
+          Locked
+        </Button>
+      ) : knockStatus === "busy" ? (
+        // Ignored → show Busy for 15 minutes, then resets
+        <Button
+          size="sm"
+          disabled
+          className="rounded-xl h-9 px-4 text-xs font-semibold flex-shrink-0"
+          style={{
+            background: "oklch(0.20 0.05 50)",
+            border: "1px solid oklch(0.40 0.12 50 / 0.5)",
+            color: "oklch(0.65 0.15 50)",
+          }}
+        >
+          <span className="mr-1">⏳</span>
+          Busy
         </Button>
       ) : (
         <Button

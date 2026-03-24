@@ -1,0 +1,1 @@
+ALTER TABLE `knock_notifications` ADD `busyUntil` timestamp;

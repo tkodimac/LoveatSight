@@ -67,6 +67,11 @@
 - [x] Add notification badge to Bell icon (shows pending knock count)
 - [x] Knock button changes to "Chat" when accepted, "Locked" when rejected
 - [x] Fix nested button HTML error on Home page (button inside button)
+<<<<<<< Updated upstream
 - [x] Auto-open chat on accept with pre-filled "Hey! \U0001F44B" welcome message
 - [x] Cooldown countdown on Locked button (e.g. "Locked \u00B7 5h 20m")
 - [x] Sound/vibration on new knock (AudioContext chime + navigator.vibrate)
+=======
+- [ ] Fix ignored knock: show "Busy" button to sender for 15 mins then reset to "Knock" (not permanently locked)
+- [ ] "Locked" button should only apply to rejected knocks, not ignored ones
+>>>>>>> Stashed changes
