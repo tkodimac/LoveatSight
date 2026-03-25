@@ -152,11 +152,19 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                             ),
                             Expanded(
                               flex: 1,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
+                              child: InkWell(
+                                splashColor: Colors.transparent,
+                                focusColor: Colors.transparent,
+                                hoverColor: Colors.transparent,
+                                highlightColor: Colors.transparent,
+                                onTap: () async {
+                                  context.pushNamed(UserProfileWidget.routeName);
+                                },
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                   Text(
                                     'Welcome back, Julian',
                                     style: FlutterFlowTheme.of(context)
@@ -304,6 +312,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                     ].divide(SizedBox(width: 8.0)),
                                   ),
                                 ].divide(SizedBox(height: 4.0)),
+                                ),
                               ),
                             ),
                             FlutterFlowIconButton(

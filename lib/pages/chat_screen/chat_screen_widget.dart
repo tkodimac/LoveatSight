@@ -271,62 +271,69 @@ class _ChatScreenWidgetState extends State<ChatScreenWidget> {
                                   },
                                 ),
 
-                                // Avatar
-                                Align(
-                                  alignment:
-                                      AlignmentDirectional(0.0, 0.0),
-                                  child: Stack(
-                                    alignment: AlignmentDirectional(
-                                        0.0, 0.0),
+                                // Avatar + Name (tappable → UserProfile)
+                                GestureDetector(
+                                  onTap: () {
+                                    context.pushNamed(
+                                        UserProfileWidget.routeName);
+                                  },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Container(
-                                        width: 48.0,
-                                        height: 48.0,
-                                        decoration: BoxDecoration(
-                                          color:
-                                              const Color(0xFF1A1221),
-                                          borderRadius:
-                                              BorderRadius.circular(
-                                                  9999.0),
-                                          border: Border.all(
-                                            color:
-                                                const Color(0x44A855F7),
-                                            width: 1.0,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.person_rounded,
-                                          color: Color(0xFF2D1B4E),
-                                          size: 32.0,
-                                        ),
-                                      ),
-                                      Opacity(
-                                        opacity: 0.3,
-                                        child: Container(
-                                          width: 52.0,
-                                          height: 52.0,
+                                  // Avatar
+                                  Align(
+                                    alignment:
+                                        AlignmentDirectional(0.0, 0.0),
+                                    child: Stack(
+                                      alignment: AlignmentDirectional(
+                                          0.0, 0.0),
+                                      children: [
+                                        Container(
+                                          width: 48.0,
+                                          height: 48.0,
                                           decoration: BoxDecoration(
+                                            color:
+                                                const Color(0xFF1A1221),
                                             borderRadius:
                                                 BorderRadius.circular(
                                                     9999.0),
                                             border: Border.all(
                                               color:
-                                                  FlutterFlowTheme.of(
-                                                          context)
-                                                      .primary,
-                                              width: 2.0,
+                                                  const Color(0x44A855F7),
+                                              width: 1.0,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.person_rounded,
+                                            color: Color(0xFF2D1B4E),
+                                            size: 32.0,
+                                          ),
+                                        ),
+                                        Opacity(
+                                          opacity: 0.3,
+                                          child: Container(
+                                            width: 52.0,
+                                            height: 52.0,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      9999.0),
+                                              border: Border.all(
+                                                color:
+                                                    FlutterFlowTheme.of(
+                                                            context)
+                                                        .primary,
+                                                width: 2.0,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-
-                                // Name + status
-                                Expanded(
-                                  flex: 1,
-                                  child: Column(
+                                  const SizedBox(width: 10.0),
+                                  // Name + status
+                                  Column(
                                     mainAxisSize: MainAxisSize.min,
                                     mainAxisAlignment:
                                         MainAxisAlignment.start,
@@ -413,6 +420,8 @@ class _ChatScreenWidgetState extends State<ChatScreenWidget> {
                                             ),
                                       ),
                                     ].divide(const SizedBox(height: 2.0)),
+                                  ),
+                                    ],
                                   ),
                                 ),
 
