@@ -87,13 +87,37 @@
 }
 
 /* ── Animations ── */
+
+/* Realistic lub-dub: strong first beat (lub), quick second beat (dub), long rest */
 @keyframes heartbeat {
-  0%, 100% { transform: scale(1); }
-  14% { transform: scale(1.12); }
-  28% { transform: scale(1); }
-  42% { transform: scale(1.08); }
-  70% { transform: scale(1); }
+  0%   { transform: scale(1);    }
+  8%   { transform: scale(1.22); }  /* lub — strong first beat */
+  16%  { transform: scale(0.96); } /* recoil */
+  26%  { transform: scale(1.14); } /* dub — softer second beat */
+  35%  { transform: scale(1);    } /* settle */
+  100% { transform: scale(1);    } /* long diastolic rest ~65% of cycle */
 }
+
+/* Synchronized glow that peaks on each beat */
+@keyframes heartbeat-glow {
+  0%   { filter: drop-shadow(0 0 4px oklch(0.72 0.22 340 / 0.3));  }
+  8%   { filter: drop-shadow(0 0 28px oklch(0.72 0.22 340 / 1.0)); } /* lub peak */
+  16%  { filter: drop-shadow(0 0 8px oklch(0.72 0.22 340 / 0.4));  }
+  26%  { filter: drop-shadow(0 0 18px oklch(0.72 0.22 340 / 0.85));} /* dub peak */
+  35%  { filter: drop-shadow(0 0 4px oklch(0.72 0.22 340 / 0.3));  }
+  100% { filter: drop-shadow(0 0 4px oklch(0.72 0.22 340 / 0.3));  }
+}
+
+/* Box-shadow version for elements that can't use filter (cards, containers) */
+@keyframes heartbeat-glow-box {
+  0%   { box-shadow: 0 0 6px 1px oklch(0.60 0.25 295 / 0.25); }
+  8%   { box-shadow: 0 0 32px 10px oklch(0.60 0.25 295 / 0.70); } /* lub */
+  16%  { box-shadow: 0 0 10px 2px oklch(0.60 0.25 295 / 0.30); }
+  26%  { box-shadow: 0 0 22px 6px oklch(0.60 0.25 295 / 0.55); } /* dub */
+  35%  { box-shadow: 0 0 6px 1px oklch(0.60 0.25 295 / 0.25); }
+  100% { box-shadow: 0 0 6px 1px oklch(0.60 0.25 295 / 0.25); }
+}
+
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 8px 2px oklch(0.55 0.28 295 / 0.3); }
   50% { box-shadow: 0 0 24px 8px oklch(0.55 0.28 295 / 0.6); }
@@ -122,7 +146,9 @@
   0% { transform: translateY(0) scale(1); opacity: 0.8; }
   100% { transform: translateY(-80px) scale(0.5); opacity: 0; }
 }
-.animate-heartbeat { animation: heartbeat 1.5s ease-in-out infinite; }
+.animate-heartbeat { animation: heartbeat 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+.animate-heartbeat-glow { animation: heartbeat 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite, heartbeat-glow 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+.animate-heartbeat-glow-box { animation: heartbeat 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite, heartbeat-glow-box 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 .animate-pulse-glow-heart { animation: pulse-glow-heart 1.5s ease-in-out infinite; }
 .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }

@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Flame, X, Zap, ExternalLink, CheckCircle, Loader2 } from "lucide-react";
+
+const springSheet = { type: "spring" as const, stiffness: 300, damping: 28, mass: 1 };
 
 type Tier = "spark" | "flame";
 
@@ -40,8 +43,12 @@ export default function PaywallPopup({ onClose, onSuccess }: PaywallPopupProps) 
       style={{ background: "oklch(0.04 0.01 270 / 0.85)", backdropFilter: "blur(8px)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div
-        className="w-full max-w-[430px] animate-fade-in-up"
+      <motion.div
+        className="w-full max-w-[430px]"
+        initial={{ y: "100%", opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: "100%", opacity: 0 }}
+        transition={springSheet}
         style={{
           background: "oklch(0.11 0.04 280)",
           borderRadius: "24px 24px 0 0",
@@ -193,7 +200,7 @@ export default function PaywallPopup({ onClose, onSuccess }: PaywallPopupProps) 
             Maybe later
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

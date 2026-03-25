@@ -74,3 +74,6 @@
 - [x] Real Stripe payment integration (Spark £2/mo, Flame £5/mo)
 - [x] Stripe webhook for subscription activation
 - [x] PaywallPopup uses real Stripe Checkout
+- [x] Realistic lub-dub two-beat heartbeat with synchronized glow
+- [x] Purple/white confetti burst on reveal success
+- [x] Framer Motion spring curve fade-ins (Splash, RevealPopup, PaywallPopup, cards)

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
+import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -422,11 +423,16 @@ function NearbyCard({
     : `${person.distance.toFixed(1)}km`;
 
   return (
-    <div className="glass-card p-4 rounded-2xl flex items-center gap-3 animate-fade-in-up">
+    <motion.div
+      className="glass-card p-4 rounded-2xl flex items-center gap-3"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 280, damping: 22, mass: 0.9 }}
+    >
       {/* Blurred silhouette */}
       <div className="relative flex-shrink-0">
         <div
-          className="w-14 h-14 rounded-full flex items-center justify-center animate-silhouette"
+          className="w-14 h-14 rounded-full flex items-center justify-center animate-heartbeat-glow-box"
           style={{
             background: "linear-gradient(135deg, oklch(0.25 0.08 285), oklch(0.18 0.05 280))",
             border: "2px solid oklch(0.35 0.10 285 / 0.5)",
@@ -438,7 +444,7 @@ function NearbyCard({
           </svg>
         </div>
         <div
-          className="absolute inset-0 rounded-full animate-pulse-glow pointer-events-none"
+          className="absolute inset-0 rounded-full pointer-events-none"
           style={{ opacity: 0.4 }}
         />
       </div>
@@ -522,6 +528,6 @@ function NearbyCard({
           ) : knocked || knockStatus === "pending" ? "Knocked ✓" : "Knock 💜"}
         </Button>
       )}
-    </div>
+    </motion.div>
   );
 }

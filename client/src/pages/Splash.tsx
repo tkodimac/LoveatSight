@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { motion } from "framer-motion";
+
+const spring = { type: "spring" as const, stiffness: 280, damping: 22, mass: 0.9 };
+const springText = { type: "spring" as const, stiffness: 220, damping: 20, mass: 1 };
 
 export default function Splash() {
   const [, navigate] = useLocation();
@@ -10,15 +14,10 @@ export default function Splash() {
     if (isLoading) return;
     const timer = setTimeout(() => {
       if (user) {
-        if (!user.ageVerified) {
-          navigate("/age-gate");
-        } else if (!user.faceVerified) {
-          navigate("/face-verify");
-        } else if (!user.displayName) {
-          navigate("/profile-setup");
-        } else {
-          navigate("/home");
-        }
+        if (!user.ageVerified) navigate("/age-gate");
+        else if (!user.faceVerified) navigate("/face-verify");
+        else if (!user.displayName) navigate("/profile-setup");
+        else navigate("/home");
       } else {
         navigate("/login");
       }
@@ -36,28 +35,24 @@ export default function Splash() {
         }}
       />
 
-      {/* Outer pulse ring */}
+      {/* Outer pulse rings */}
       <div
         className="absolute w-64 h-64 rounded-full animate-ping"
-        style={{
-          background: "transparent",
-          border: "1px solid oklch(0.55 0.22 295 / 0.15)",
-          animationDuration: "2.5s",
-        }}
+        style={{ background: "transparent", border: "1px solid oklch(0.55 0.22 295 / 0.15)", animationDuration: "2.5s" }}
       />
       <div
         className="absolute w-48 h-48 rounded-full animate-ping"
-        style={{
-          background: "transparent",
-          border: "1px solid oklch(0.55 0.22 295 / 0.2)",
-          animationDuration: "2s",
-          animationDelay: "0.3s",
-        }}
+        style={{ background: "transparent", border: "1px solid oklch(0.55 0.22 295 / 0.2)", animationDuration: "2s", animationDelay: "0.3s" }}
       />
 
-      {/* Heart icon */}
       <div className="relative z-10 flex flex-col items-center gap-6">
-        <div className="animate-heartbeat">
+        {/* Heart — spring entrance + lub-dub glow */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.4 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ ...spring, delay: 0.1 }}
+          className="animate-heartbeat-glow"
+        >
           <svg width="72" height="72" viewBox="0 0 24 24" fill="none">
             <defs>
               <linearGradient id="splash-hg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -79,10 +74,15 @@ export default function Splash() {
               filter="url(#glow)"
             />
           </svg>
-        </div>
+        </motion.div>
 
-        {/* App name */}
-        <div className="text-center">
+        {/* App name — spring slide-up */}
+        <motion.div
+          className="text-center"
+          initial={{ opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...springText, delay: 0.28 }}
+        >
           <h1
             className="text-4xl font-light tracking-widest mb-2"
             style={{
@@ -97,21 +97,25 @@ export default function Splash() {
           <p className="text-sm tracking-widest uppercase text-muted-foreground font-light">
             find your mystery
           </p>
-        </div>
+        </motion.div>
 
-        {/* Loading dots */}
-        <div className="flex gap-1.5 mt-4">
+        {/* Loading dots — spring stagger */}
+        <motion.div
+          className="flex gap-1.5 mt-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.55 }}
+        >
           {[0, 1, 2].map(i => (
-            <div
+            <motion.div
               key={i}
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{
-                background: "oklch(0.60 0.22 290)",
-                animationDelay: `${i * 0.2}s`,
-              }}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: "oklch(0.60 0.22 290)" }}
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: "easeInOut" }}
             />
           ))}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
